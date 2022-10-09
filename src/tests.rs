@@ -8,11 +8,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::thread;
+use crate::CHashMap;
+use crate::MAX_LOAD_FACTOR_DENOM;
+use serde_json;
 use std::cell::RefCell;
 use std::sync::Arc;
-use CHashMap;
-use MAX_LOAD_FACTOR_DENOM;
+use std::thread;
 
 #[test]
 fn spam_insert() {
@@ -320,7 +321,7 @@ thread_local! { static DROP_VECTOR: RefCell<Vec<isize>> = RefCell::new(Vec::new(
 
 #[derive(Hash, PartialEq, Eq)]
 struct Dropable {
-    k: usize
+    k: usize,
 }
 
 impl Dropable {
@@ -364,7 +365,7 @@ fn drops() {
 
         for i in 0..100 {
             let d1 = Dropable::new(i);
-            let d2 = Dropable::new(i+100);
+            let d2 = Dropable::new(i + 100);
             m.insert(d1, d2);
         }
 
@@ -382,19 +383,19 @@ fn drops() {
 
             DROP_VECTOR.with(|v| {
                 assert_eq!(v.borrow()[i], 1);
-                assert_eq!(v.borrow()[i+100], 1);
+                assert_eq!(v.borrow()[i + 100], 1);
             });
         }
 
         DROP_VECTOR.with(|v| {
             for i in 0..50 {
                 assert_eq!(v.borrow()[i], 0);
-                assert_eq!(v.borrow()[i+100], 0);
+                assert_eq!(v.borrow()[i + 100], 0);
             }
 
             for i in 50..100 {
                 assert_eq!(v.borrow()[i], 1);
-                assert_eq!(v.borrow()[i+100], 1);
+                assert_eq!(v.borrow()[i + 100], 1);
             }
         });
     }
@@ -423,7 +424,7 @@ fn move_iter_drops() {
 
         for i in 0..100 {
             let d1 = Dropable::new(i);
-            let d2 = Dropable::new(i+100);
+            let d2 = Dropable::new(i + 100);
             hm.insert(d1, d2);
         }
 
@@ -451,13 +452,9 @@ fn move_iter_drops() {
         for _ in half.by_ref() {}
 
         DROP_VECTOR.with(|v| {
-            let nk = (0..100).filter(|&i| {
-                v.borrow()[i] == 1
-            }).count();
+            let nk = (0..100).filter(|&i| v.borrow()[i] == 1).count();
 
-            let nv = (0..100).filter(|&i| {
-                v.borrow()[i+100] == 1
-            }).count();
+            let nv = (0..100).filter(|&i| v.borrow()[i + 100] == 1).count();
 
             assert_eq!(nk, 50);
             assert_eq!(nv, 50);
@@ -488,12 +485,12 @@ fn lots_of_insertions() {
         for i in 1..1001 {
             assert!(m.insert(i, i).is_none());
 
-            for j in 1..i+1 {
+            for j in 1..i + 1 {
                 let r = m.get(&j);
                 assert_eq!(*r.unwrap(), j);
             }
 
-            for j in i+1..1001 {
+            for j in i + 1..1001 {
                 let r = m.get(&j);
                 assert_eq!(r, None);
             }
@@ -507,11 +504,11 @@ fn lots_of_insertions() {
         for i in 1..1001 {
             assert!(m.remove(&i).is_some());
 
-            for j in 1..i+1 {
+            for j in 1..i + 1 {
                 assert!(!m.contains_key(&j));
             }
 
-            for j in i+1..1001 {
+            for j in i + 1..1001 {
                 assert!(m.contains_key(&j));
             }
         }
@@ -547,7 +544,8 @@ fn find_mut() {
     assert!(m.insert(5, 14).is_none());
     let new = 100;
     match m.get_mut(&5) {
-        None => panic!(), Some(mut x) => *x = new
+        None => panic!(),
+        Some(mut x) => *x = new,
     }
     assert_eq!(*m.get(&5).unwrap(), new);
 }
@@ -618,19 +616,24 @@ fn find() {
     let lock = m.get(&1);
     match lock {
         None => panic!(),
-        Some(v) => assert_eq!(*v, 2)
+        Some(v) => assert_eq!(*v, 2),
     }
 }
 
 #[test]
 fn known_size_with_capacity_matches_shrink() {
-     for i in 0..(MAX_LOAD_FACTOR_DENOM * 4) {
+    for i in 0..(MAX_LOAD_FACTOR_DENOM * 4) {
         // Setup a map where we know the number of entries we will store
         let m = CHashMap::with_capacity(i);
         let original_capacity = m.capacity();
         let buckets = m.buckets();
-        assert!(i <= original_capacity, "Expected {} <= {} for {} buckets",
-            i, original_capacity, buckets);
+        assert!(
+            i <= original_capacity,
+            "Expected {} <= {} for {} buckets",
+            i,
+            original_capacity,
+            buckets
+        );
         for j in 0..i {
             m.insert(j, j);
         }
@@ -638,15 +641,17 @@ fn known_size_with_capacity_matches_shrink() {
         // Make sure inserting didn't increase capacity given we already knew
         // number of entries planned on map construction
         let grown_capacity = m.capacity();
-        assert_eq!(original_capacity,  grown_capacity,
-            " for {} inserts", i);
+        assert_eq!(original_capacity, grown_capacity, " for {} inserts", i);
 
         // Shrink it and check that capacity is the same
         m.shrink_to_fit();
         let shrunken_capacity = m.capacity();
-        assert_eq!(shrunken_capacity, original_capacity,
-            "Expected {} == {} ", shrunken_capacity, shrunken_capacity);
-     }
+        assert_eq!(
+            shrunken_capacity, original_capacity,
+            "Expected {} == {} ",
+            shrunken_capacity, shrunken_capacity
+        );
+    }
 }
 
 #[test]
@@ -662,14 +667,19 @@ fn shrink_to_fit_after_insert() {
         // Test
         m.shrink_to_fit();
         let shrunken_capacity = m.capacity();
-        assert!(shrunken_capacity <= original_capacity,
+        assert!(
+            shrunken_capacity <= original_capacity,
             "Unexpected capacity after shrink given {} inserts. Expected {} <= {}",
-            i, shrunken_capacity, original_capacity );
+            i,
+            shrunken_capacity,
+            original_capacity
+        );
     }
 }
 
 #[test]
 fn reserve_shrink_to_fit() {
+    // why is this test so slow?
     let m = CHashMap::new();
     m.insert(0, 0);
     m.remove(&0);
@@ -755,4 +765,48 @@ fn lookup_borrowed() {
     let m = CHashMap::with_capacity(1);
     m.insert("v".to_owned(), "value");
     m.get("v").unwrap();
+}
+
+#[test]
+fn serde_serialize() {
+    let cmap1 = CHashMap::<String, String>::new();
+    cmap1.insert("key1".to_string(), "val1".to_string());
+    cmap1.insert("key2".to_string(), "val2".to_string());
+
+    let j1 = serde_json::to_string(&cmap1);
+    assert!(j1.is_ok());
+
+    let cmap2 = CHashMap::<String, i32>::new();
+    cmap2.insert("key1".to_string(), 1);
+    cmap2.insert("key2".to_string(), 2);
+
+    let j2 = serde_json::to_string(&cmap2);
+    assert!(j2.is_ok());
+}
+
+#[test]
+fn serde_deserialize() {
+    let cmap1 = CHashMap::<String, String>::new();
+    cmap1.insert("key1".to_string(), "val1".to_string());
+    cmap1.insert("key2".to_string(), "val2".to_string());
+
+    let j1 = serde_json::to_string(&cmap1);
+    assert!(j1.is_ok());
+
+    let cmap2 = CHashMap::<String, i32>::new();
+    cmap2.insert("key1".to_string(), 1);
+    cmap2.insert("key2".to_string(), 2);
+
+    let j2 = serde_json::to_string(&cmap2);
+    assert!(j2.is_ok());
+
+    let j1 = j1.unwrap();
+    let cmap1x: CHashMap<String, String> = serde_json::from_str(j1.as_str()).unwrap();
+
+    assert_eq!(*cmap1.get("key1").unwrap(), *cmap1x.get("key1").unwrap());
+    assert_eq!(*cmap1.get("key2").unwrap(), *cmap1x.get("key2").unwrap());
+
+    let cmap2x: CHashMap<String, i32> = serde_json::from_str(j2.unwrap().as_str()).unwrap();
+    assert_eq!(*cmap2.get("key1").unwrap(), *cmap2x.get("key1").unwrap());
+    assert_eq!(*cmap2.get("key2").unwrap(), *cmap2x.get("key2").unwrap());
 }

@@ -41,12 +41,20 @@
 
 extern crate owning_ref;
 extern crate parking_lot;
+extern crate serde;
 
 #[cfg(test)]
 mod tests;
 
 use owning_ref::{OwningHandle, OwningRef};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use serde::{
+    de::MapAccess, de::Visitor, ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer,
+};
+
+use std::marker::PhantomData;
+
 use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -463,7 +471,7 @@ impl<K: PartialEq + Hash, V, S: BuildHasher> Table<K, V, S> {
             // We'll only transfer the bucket if it is a KV pair.
             if let Bucket::Contains(key, val) = i.into_inner() {
                 // Find a bucket where the KV pair can be inserted.
-                let mut bucket = self.scan_mut_no_lock(&key, |x| match *x {
+                let bucket = self.scan_mut_no_lock(&key, |x| match *x {
                     // Halt on an empty bucket.
                     Bucket::Empty => true,
                     // We'll assume that the rest of the buckets either contains other KV pairs (in
@@ -864,8 +872,6 @@ impl<K: PartialEq + Hash, V, S: BuildHasher> CHashMap<K, V, S> {
         let bucket = lock.lookup(key);
         // Test if it is free or not.
         !bucket.is_free()
-
-        // fuck im sleepy rn
     }
 }
 
@@ -1110,6 +1116,39 @@ where
     }
 }
 
+impl<K: Serialize, V: Serialize, S> Serialize for CHashMap<K, V, S> {
+    fn serialize<T>(&self, serializer: T) -> Result<T::Ok, T::Error>
+    where
+        T: Serializer,
+    {
+        let lock = self.table.read();
+        let mut map_serializer = serializer.serialize_map(Some(self.len()))?;
+        {
+            for bucket in lock.buckets.iter() {
+                {
+                    if let Bucket::Contains(ref key, ref value) = *bucket.read() {
+                        map_serializer.serialize_entry(key, value)?;
+                    }
+                }
+            }
+        }
+        map_serializer.end()
+    }
+}
+
+impl<'de, K: Deserialize<'de> + PartialEq + Hash, V: Deserialize<'de>, S> Deserialize<'de>
+    for CHashMap<K, V, S>
+where
+    S: Default + BuildHasher,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(ChashMapVisitor::new())
+    }
+}
+
 impl<K, V, S: Default + BuildHasher> Default for CHashMap<K, V, S> {
     fn default() -> Self {
         // Forward the call to `new`.
@@ -1163,5 +1202,46 @@ impl<K: PartialEq + Hash, V, S: Default + BuildHasher> iter::FromIterator<(K, V)
             table: RwLock::new(table),
             len: AtomicUsize::new(len),
         }
+    }
+}
+
+struct ChashMapVisitor<K, V, S = RandomState> {
+    marker: PhantomData<fn() -> CHashMap<K, V, S>>,
+}
+
+impl<K, V, S> ChashMapVisitor<K, V, S> {
+    fn new() -> Self {
+        ChashMapVisitor {
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, K, V, S> Visitor<'de> for ChashMapVisitor<K, V, S>
+where
+    K: Deserialize<'de> + PartialEq + Hash,
+    V: Deserialize<'de>,
+    S: Default + BuildHasher,
+{
+    type Value = CHashMap<K, V, S>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("CHashMap")
+    }
+
+    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let map = CHashMap::<K, V, S>::with_hasher_and_capacity(
+            access.size_hint().unwrap_or(0),
+            S::default(), // this should not be default but I don't know a way around it.
+        );
+
+        while let Some((key, value)) = access.next_entry()? {
+            map.insert(key, value);
+        }
+
+        Ok(map)
     }
 }
