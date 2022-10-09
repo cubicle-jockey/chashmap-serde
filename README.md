@@ -65,6 +65,6 @@ fn main() {
  let cmap1x: CHashMap<String, String> = serde_json::from_str(j1.as_str()).unwrap();
 
  assert_eq!(*cmap1.get("key1").unwrap(), *cmap1x.get("key1").unwrap());
- assert_eq!(*cmap1.get("key2").unwrap(), *cmap1x.get("key2").unwrap
+ assert_eq!(*cmap1.get("key2").unwrap(), *cmap1x.get("key2").unwrap());
 }
 ```
