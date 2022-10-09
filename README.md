@@ -1,3 +1,8 @@
+[![Rust](https://github.com/cubicle-jockey/chashmap-serde/actions/workflows/rust.yml/badge.svg)](https://github.com/cubicle-jockey/chashmap-serde/actions/workflows/rust.yml)
+[![Dependency Review](https://github.com/cubicle-jockey/chashmap-serde/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/cubicle-jockey/chashmap-serde/actions/workflows/dependency-review.yml)
+[![Crate](https://img.shields.io/crates/v/chashmap-serde.svg)](https://crates.io/crates/chashmap-serde)
+[![API](https://docs.rs/chashmap-serde/badge.svg)](https://docs.rs/chashmap-serde)
+
 Concurrent hash maps.
 
 This is a clone of https://gitlab.redox-os.org/redox-os/chashmap, which at time of writing seems largely unmaintained. 
