@@ -9,7 +9,7 @@ documentation = "https://docs.rs/chashmap-serde"
 #repository = "https://gitlab.redox-os.org/redox-os/chashmap"
 #documentation = "https://docs.rs/chashmap"
 license = "MIT"
-keywords = ["hashmap", "concurrent", "parking_lot", "lock", "map", "serde"]
+keywords = ["hashmap", "concurrent", "parking_lot", "lock", "serde"]
 exclude = ["target", "Cargo.lock"]
 edition = "2021"
 
