@@ -768,6 +768,24 @@ fn lookup_borrowed() {
 }
 
 #[test]
+fn keys() {
+    let cmap = CHashMap::<String, String>::new();
+    cmap.insert("key1".to_string(), "val1".to_string());
+    cmap.insert("key2".to_string(), "val2".to_string());
+
+    let keys = cmap.keys();
+    assert!(keys.contains(&"key1".to_string()));
+    assert!(keys.contains(&"key2".to_string()));
+
+    let mut count = 0;
+    for key in cmap.keys() {
+        assert!(cmap.get(&key).is_some());
+        count += 1;
+    }
+    assert_eq!(count, 2);
+}
+
+#[test]
 fn serde_serialize() {
     let cmap1 = CHashMap::<String, String>::new();
     cmap1.insert("key1".to_string(), "val1".to_string());
