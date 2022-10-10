@@ -1116,6 +1116,27 @@ where
     }
 }
 
+impl<K, V, S> CHashMap<K, V, S>
+where
+    K: Clone,
+{
+    /// returns a vec of keys. Note that this does a clone operation.
+    pub fn keys(&self) -> Vec<K> {
+        let mut result = Vec::<K>::with_capacity(self.len());
+        let lock = self.table.read();
+        {
+            for bucket in lock.buckets.iter() {
+                {
+                    if let Bucket::Contains(ref key, _) = *bucket.read() {
+                        result.push(key.clone());
+                    }
+                }
+            }
+        }
+        result
+    }
+}
+
 impl<K: Serialize, V: Serialize, S> Serialize for CHashMap<K, V, S> {
     fn serialize<T>(&self, serializer: T) -> Result<T::Ok, T::Error>
     where
