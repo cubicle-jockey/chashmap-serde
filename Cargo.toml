@@ -1,6 +1,6 @@
 [package]
 name = "chashmap-serde"
-version = "0.1.1"
+version = "2.2.3"
 authors = ["ticki <Ticki@users.noreply.github.com>","cubicle-jockey <cubicle-jockey@users.noreply.github.com>"]
 description = "Fast, concurrent hash maps with extensive API and Serde support."
 repository = "https://github.com/cubicle-jockey/chashmap-serde.git"

@@ -1,5 +1,9 @@
 //! Concurrent hash maps.
 //!
+//! This is a clone of https://gitlab.redox-os.org/redox-os/chashmap, which at time of writing seems largely unmaintained.
+//! <b>I take no credit for the original author's hard work.</b> <i>My contributions are to add serde support and any other features
+//! that I may personally need.</i>
+//!
 //! This crate implements concurrent hash maps, based on bucket-level multi-reader locks. It has
 //! excellent performance characteristics¹ and supports resizing, in-place mutation and more.
 //!
